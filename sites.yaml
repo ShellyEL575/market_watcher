@@ -1,0 +1,48 @@
+sites:
+  # ===== OFFICIAL BLOGS / NEWS =====
+  - url: "https://harness.io/blog"
+    selector: "main"
+
+  - url: "https://about.gitlab.com/blog/"
+    selector: "main"
+  - url: "https://about.gitlab.com/releases/"
+    selector: "main"
+
+  - url: "https://github.blog/"
+    selector: "main"
+  - url: "https://github.blog/changelog/"
+    selector: "main"
+
+  # ===== COMMUNITY FORUMS (RSS feeds) =====
+  - url: "https://community.harness.io/latest.rss"
+  - url: "https://forum.gitlab.com/latest.rss"
+  - url: "https://community.grafana.com/latest.rss"
+
+  # ===== GITHUB DISCUSSIONS / ISSUES (Atom feeds) =====
+  - url: "https://github.com/orgs/community/discussions.atom"
+  - url: "https://github.com/grafana/grafana/discussions.atom"
+  - url: "https://gitlab.com/gitlab-org/gitlab/-/issues.atom"
+
+  # ===== STACK OVERFLOW TAGS (RSS feeds) =====
+  - url: "https://stackoverflow.com/feeds/tag?tagnames=gitlab&sort=newest"
+  - url: "https://stackoverflow.com/feeds/tag?tagnames=github&sort=newest"
+  - url: "https://stackoverflow.com/feeds/tag?tagnames=grafana&sort=newest"
+  - url: "https://stackoverflow.com/feeds/tag?tagnames=harness-io&sort=newest"
+  - url: "https://stackoverflow.com/feeds/tag?tagnames=jenkins&sort=newest"
+
+  # ===== REDDIT (RSS — best for reliability) =====
+  - url: "https://www.reddit.com/r/devops/.rss"
+  - url: "https://www.reddit.com/r/gitlab/.rss"
+  - url: "https://www.reddit.com/r/github/.rss"
+  - url: "https://www.reddit.com/r/observability/.rss"
+  - url: "https://www.reddit.com/r/kubernetes/.rss"
+
+  # HN keyword streams (customer voice)
+  - url: "https://hnrss.org/newest?points=20&q=gitlab%20OR%20github%20OR%20grafana%20OR%20jenkins"
+  - url: "https://hnrss.org/newest?points=20&q=devops%20OR%20cicd%20OR%20observability"
+
+  # ===== ANALYST / MEDIA (broader market perspective) =====
+  - url: "https://thenewstack.io/"
+    selector: "main"
+  - url: "https://www.infoq.com/devops/"
+    selector: "main"
