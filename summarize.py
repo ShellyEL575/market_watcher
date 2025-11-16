@@ -42,10 +42,6 @@ Here are the raw updates to analyze:
 """
 
 def _build_diffs_text(changes: List[Dict]) -> str:
-    """
-    Builds structured diff text for the LLM.
-    Now includes precise per-item links from scraper.
-    """
     sections = {
         "sentiment": defaultdict(list),
         "platform_counts": Counter(),
@@ -63,15 +59,13 @@ def _build_diffs_text(changes: List[Dict]) -> str:
         stype = c.get("source_type", "other")
         domain = url.lower()
 
-        # --- SOCIAL SENTIMENT ------------------------------------------------
         if stype == "social":
             for q in quotes:
                 qtext = q.get("summary") or q.get("text") or "(no summary)"
-                qlink = q.get("link") or url          # <-- precise item URL
+                qlink = q.get("link") or url
                 platform = q.get("platform") or "unknown"
-
-                # Simple theme extraction (upgradable later)
                 lowered = qtext.lower()
+
                 if any(x in lowered for x in ["ai", "ml", "artificial"]):
                     theme = "AI Integration in DevOps"
                 elif any(x in lowered for x in ["adoption", "learning curve", "onboarding"]):
@@ -84,60 +78,45 @@ def _build_diffs_text(changes: List[Dict]) -> str:
                 sections["sentiment"][theme].append((qtext.strip(), qlink, platform))
                 sections["platform_counts"].update([platform])
 
-        # --- COMPETITOR ------------------------------------------------------
         elif any(x in domain for x in ["gitlab", "github", "harness", "grafana", "linearb"]):
             lines = "\n".join(f"• {ln}" for ln in added[:20])
             sections["competitor"].append(f"### {url}\n\n{lines}")
 
-        # --- AI TRENDS -------------------------------------------------------
         elif any(x in domain for x in ["openai", "langchain", "nvidia", "ml", "ai"]):
             lines = "\n".join(f"• {ln}" for ln in added[:20])
             sections["ai"].append(f"### {url}\n\n{lines}")
 
-        # --- ANALYST CONTENT -------------------------------------------------
         elif stype == "analyst":
             lines = "\n".join(f"• {ln}" for ln in added[:20])
             sections["analyst"].append(f"### {url}\n\n{lines}")
 
-        # --- JOBS ------------------------------------------------------------
         elif "jobs" in stype or "job" in domain:
             lines = "\n".join(f"• {ln}" for ln in added[:20])
             sections["jobs"].append(f"### {url}\n\n{lines}")
 
-        # --- OTHER -----------------------------------------------------------
         else:
             lines = "\n".join(f"• {ln}" for ln in added[:20])
             sections["other"].append(f"### {url}\n\n{lines}")
 
-    # -------------------------------------------------------------------------
-    # BUILD OUTPUT
-    # -------------------------------------------------------------------------
     output = []
 
-    # --- SENTIMENT BLOCK -----------------------------------------------------
     if sections["sentiment"]:
         sentiment_lines = [
             "## 🔥 Market Sentiment (Social: Reddit, X, LinkedIn, StackOverflow)",
             "",
             "### Key Themes:"
         ]
-
         for theme, quotes in sections["sentiment"].items():
             platform_counts = Counter([p for _, _, p in quotes])
             total = sum(platform_counts.values())
             platforms_str = ", ".join([f"{k}: {v}" for k, v in platform_counts.items()])
-
             sentiment_lines.append(
                 f"\n**{theme}**\n- **Mentions**: {total} ({platforms_str})\n- **Quotes:**"
             )
-
-            # Show top quotes with precise links
             for qtext, qlink, platform in quotes[:5]:
                 sentiment_lines.append(f'  - *({platform})* "{qtext}" — [View Post]({qlink})')
-
         output.append("\n".join(sentiment_lines))
 
-    # --- OTHER SECTIONS ------------------------------------------------------
     if sections["competitor"]:
         output.append("## 🏢 By Competitor\n" + "\n\n".join(sections["competitor"]))
 
@@ -156,29 +135,29 @@ def _build_diffs_text(changes: List[Dict]) -> str:
     return "\n\n".join(output)
 
 def write_summary(changes: List[Dict], retries=3, delay=5) -> str:
-    """
-    Generates the final LLM summary.
-    Includes retry + backoff for network stability.
-    """
     if not changes or all(not (c.get("added") or c.get("removed")) for c in changes):
         return "No changes detected this period."
 
     diffs_text = _build_diffs_text(changes)
+
+    # ✅ Print what we send to OpenAI
+    print("\n📄 ===== LLM INPUT PREVIEW =====\n")
+    print(USER_TMPL.format(diffs=diffs_text))
+    print("\n📄 ===== END OF INPUT =====\n")
+
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     for attempt in range(1, retries + 1):
         try:
             print(f"🧠 Generating summary (attempt {attempt}/{retries})...")
-
             resp = client.chat.completions.create(
-                model="gpt-4o-mini",   # keep light + stable
+                model="gpt-4o-mini",
                 temperature=0.2,
                 messages=[
                     {"role": "system", "content": SYSTEM},
                     {"role": "user", "content": USER_TMPL.format(diffs=diffs_text)},
                 ],
             )
-
             return resp.choices[0].message.content.strip()
 
         except APIConnectionError as e:
