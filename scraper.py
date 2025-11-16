@@ -73,12 +73,17 @@ def fetch_site_batch(yaml_path: str) -> List[Dict]:
             extracted = _extract_html_text(text_raw)
             quotes = []
 
+        source_type = "social" if any(domain in url for domain in [
+            "reddit.com", "stackoverflow.com", "linkedin.com", "twitter.com", "x.com", "hnrss.org", "discord.com"
+        ]) else "official"
+
         results.append({
             "url": url,
             "text": extracted,
             "quotes": quotes,
             "fetched_at": int(time.time()),
-            "hash": hashlib.md5(extracted.encode("utf-8")).hexdigest()
+            "hash": hashlib.md5(extracted.encode("utf-8")).hexdigest(),
+            "source_type": source_type
         })
 
     return results
