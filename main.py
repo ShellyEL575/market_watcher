@@ -19,6 +19,8 @@ def make_baseline_changes(pages, cap_per_site=200):
             "removed": [],
             "added_count": min(len(lines), cap_per_site),
             "removed_count": 0,
+            "source_type": p.get("source_type", "official"),
+            "quotes": p.get("quotes", []),
         })
     return baseline
 
@@ -51,17 +53,51 @@ def run_weekly():
         not (c.get("added") or c.get("removed")) for c in changes
     )
 
+    # -----------------------------
+    # 🔥 FILTER + ENRICH CHANGES
+    # -----------------------------
     if force or no_real_diffs:
         print("📌 No real diffs detected. Generating baseline summary...")
         chosen_changes = make_baseline_changes(pages)
+
     else:
         print("📊 Real diffs detected. Using them for summary...")
-        chosen_changes = changes
 
+        chosen_changes = []
+
+        for c in changes:
+            # Skip empty diffs
+            if not (c.get("added") or c.get("removed")):
+                continue
+
+            # Find related page metadata
+            page = next((p for p in pages if p["url"] == c["url"]), {})
+            source_type = page.get("source_type", "official")
+
+            # SOCIAL‑ONLY QUOTES HERE
+            if source_type == "social":
+                filtered_quotes = page.get("quotes", [])
+            else:
+                filtered_quotes = []
+
+            new_change = {
+                **c,
+                "source_type": source_type,
+                "quotes": filtered_quotes,
+            }
+
+            chosen_changes.append(new_change)
+
+    # -----------------------------
+    # LLM SUMMARY
+    # -----------------------------
     print("🧠 Sending diffs to OpenAI for summary...")
     report = write_summary(chosen_changes)
     print("📝 Received summary from OpenAI.")
 
+    # -----------------------------
+    # STORE SNAPSHOTS + REPORT
+    # -----------------------------
     upsert_snapshots(pages)
 
     now = int(time.time())
@@ -69,6 +105,9 @@ def run_weekly():
     md_path = write_markdown(report, chosen_changes)
     save_report(now, report)
 
+    # -----------------------------
+    # FINAL OUTPUT
+    # -----------------------------
     print("\n✅ Weekly Market Watch Report\n" + "="*32 + "\n")
     print(report)
     print(f"\n(saved to SQLite, Markdown: {md_path})")
