@@ -1,6 +1,7 @@
 import os
+import time
 from typing import List, Dict
-from openai import OpenAI
+from openai import OpenAI, APIConnectionError
 
 SYSTEM = """You are a VP of Product Marketing (PMM) reviewing competitive and market intelligence.
 Your goal is to brief the executive team and guide the PMM org.
@@ -50,18 +51,29 @@ def _build_diffs_text(changes: List[Dict]) -> str:
 
     return "\n\n".join(sections) if sections else "(no diffs)"
 
-def write_summary(changes: List[Dict]) -> str:
+def write_summary(changes: List[Dict], retries=3, delay=5) -> str:
     if not changes or all(not (c.get("added") or c.get("removed")) for c in changes):
         return "No changes detected this period."
 
     diffs_text = _build_diffs_text(changes)
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": USER_TMPL.format(diffs=diffs_text)},
-        ],
-        temperature=0.2,
-    )
-    return resp.choices[0].message.content.strip()
+
+    for attempt in range(1, retries + 1):
+        try:
+            print(f"🧠 Generating summary (attempt {attempt}/{retries})...")
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM},
+                    {"role": "user", "content": USER_TMPL.format(diffs=diffs_text)},
+                ],
+                temperature=0.2,
+            )
+            return resp.choices[0].message.content.strip()
+
+        except APIConnectionError as e:
+            print(f"⚠️ OpenAI connection failed (attempt {attempt}/{retries}): {e}")
+            if attempt < retries:
+                time.sleep(delay * attempt)
+            else:
+                raise
