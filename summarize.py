@@ -17,10 +17,10 @@ It should prioritize insight, clarity, and actionable value, and feel polished e
 
 # Format the briefing with these structured sections:
 
-## 🔥 Community & Sentiment (Forums, Reddit, HN)
-- Group key quotes and themes from real users.
-- Highlight adoption blockers, shifts in sentiment, new tool buzz.
-- Include 3–7 direct quotes with links, grouped by theme if possible.
+## 🔥 Market Sentiment (Social only: Reddit, X, LinkedIn, StackOverflow)
+- Group feedback into clear themes (e.g., onboarding, pricing, performance).
+- Quantify mentions (e.g., “12 posts about agent flakiness”).
+- Include 3–5 linked quotes as evidence.
 
 ## 🧠 Executive Summary
 - 3–5 top insights across all competitors or market signals.
@@ -28,9 +28,10 @@ It should prioritize insight, clarity, and actionable value, and feel polished e
 - Use strong verbs. Add source links inline.
 
 ## 🏢 By Competitor (GitLab, GitHub, Harness, Grafana, etc.)
-- For each, summarize major new releases, features, or positioning shifts.
-- Add implications for CloudBees where applicable.
-- Link to original source for each item.
+- For each, list only content published in the past 7 days.
+- Include actual post dates (e.g., “Nov 10: GitHub launched…”).
+- Skip or flag stale content even if diffed again.
+- Add links to source content.
 
 ## 🗞️ Analyst & Media
 - Summarize 1–3 relevant industry or analyst pieces.
@@ -42,11 +43,6 @@ It should prioritize insight, clarity, and actionable value, and feel polished e
 - Highlight roles tied to product growth, GTM focus, or strategic bets (e.g., AI, DevEx, ecosystem).
 - Mention volume shifts, new regions, or notable senior hires.
 - Include links to 2–3 representative listings.
-
-## ✅ PMM Actions
-- 3–5 concrete recommendations for the PMM org.
-- Each should be specific, time-relevant, and tied to insights above.
-- Note if cross-functional help is needed (e.g., Sales, Eng, Execs).
 
 ---
 Here are the raw diffs to analyze:
@@ -62,8 +58,10 @@ def _build_diffs_text(changes: List[Dict]) -> str:
         url = c.get("url", "")
         quotes = c.get("quotes") or []
         added = c.get("added") or []
+        source_type = c.get("source_type", "official")
 
-        if quotes:
+        # Only include social quotes in sentiment section
+        if source_type == "social" and quotes:
             for q in quotes:
                 qtext = q.get("summary") or q.get("text") or "(no summary)"
                 qlink = q.get("link") or url
@@ -75,7 +73,7 @@ def _build_diffs_text(changes: List[Dict]) -> str:
 
     all_sections = []
     if quotes_section:
-        all_sections.append("## 🔥 Community & Sentiment Quotes\n" + "\n".join(quotes_section))
+        all_sections.append("## 🔥 Community & Sentiment Quotes (Social Only)\n" + "\n".join(quotes_section))
     if others_section:
         all_sections.append("\n\n## 📚 Other Updates\n" + "\n\n".join(others_section))
 
