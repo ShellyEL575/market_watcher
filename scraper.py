@@ -46,10 +46,6 @@ def _infer_platform_from_url(url: str) -> str:
     return "Other"
 
 def _extract_rss_with_quotes(text: str, feed_url: str) -> Tuple[str, List[Dict]]:
-    """
-    Extracts items from RSS/Atom feeds and preserves the *precise* link per item.
-    This fixes the broken-link issue in Market Sentiment.
-    """
     soup = BeautifulSoup(text, "xml")
     items = soup.find_all("item")
     quotes = []
@@ -59,31 +55,26 @@ def _extract_rss_with_quotes(text: str, feed_url: str) -> Tuple[str, List[Dict]]
     for item in items:
         title_tag = item.find("title")
         link_tag = item.find("link")
-        guid_tag = item.find("guid")
         date_tag = item.find("pubDate")
 
         summary = title_tag.text.strip() if title_tag else ""
         link = link_tag.text.strip() if link_tag else ""
-        guid = guid_tag.text.strip() if guid_tag else ""
         pub_date = date_tag.text.strip() if date_tag else None
-
-        # Choose the most precise URL available
-        item_url = link or guid or feed_url
-
-        platform = _infer_platform_from_url(item_url) or fallback_platform
 
         if not summary:
             continue
 
+        # Determine platform based on item link, fallback to feed platform
+        platform = _infer_platform_from_url(link) if link else fallback_platform
+
         quotes.append({
             "summary": summary,
-            "link": item_url,
+            "link": link or feed_url,
             "platform": platform,
             "pub_date": pub_date
         })
 
-    # Combined text used for hashing & diffing
-    combined = "\n".join(f"[{q['platform']}] {q['summary']} ({q['link']})" for q in quotes)
+    combined = "\n".join(q["summary"] for q in quotes)
     return combined, quotes
 
 def _extract_html_text(text: str) -> str:
@@ -100,12 +91,6 @@ def _infer_source_type(url: str) -> str:
     return "social" if any(domain in url for domain in social_domains) else "official"
 
 def fetch_site_batch(yaml_path: str) -> List[Dict]:
-    """
-    Fetches all sites defined in sites.yaml and returns structured results:
-    - text: extracted text (RSS items or full HTML text)
-    - quotes: list of structured sentiment items (for RSS/social feeds)
-    - source_type: social or official
-    """
     with open(yaml_path, "r") as f:
         data = yaml.safe_load(f)
 
@@ -122,14 +107,13 @@ def fetch_site_batch(yaml_path: str) -> List[Dict]:
             print(f"⚠️  Skipping {url}: {e}")
             continue
 
-        # Detect RSS vs HTML and extract accordingly
         if _is_rss_like(text_raw):
             extracted, quotes = _extract_rss_with_quotes(text_raw, url)
         else:
             extracted = _extract_html_text(text_raw)
             quotes = []
 
-        # Prefer YAML-specified type; if missing, infer from URL
+        # Prefer manual type from YAML, fallback to domain-based guess
         source_type = site.get("type") or _infer_source_type(url)
 
         results.append({
