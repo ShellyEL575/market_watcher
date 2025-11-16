@@ -10,6 +10,11 @@ You write in a clear, concise, executive style."""
 USER_TMPL = """You receive diffs of market/competitor content (blogs, releases, forums, analyst notes).
 Please produce a structured weekly report with these sections:
 
+# Community & Sentiment
+- Summarize Reddit, HN, and forums.
+- Include direct quotes with links and any standout opinions.
+- Highlight recurring themes, concerns, or praises.
+
 # Executive Summary
 - High-level highlights across all competitors and market chatter.
 - Major risks or opportunities.
@@ -22,8 +27,7 @@ For each named competitor (Harness, GitLab, GitHub, DX, LinearB, Grafana):
 
 # By Site Type
 - **Analyst / Media**: Summarize analyst blogs (Gartner, Forrester, TheNewStack, InfoQ).
-- **Community / Forums**: Summarize Reddit, HN, other forums.
-- Highlight sentiment, recurring themes, adoption pain points.
+- Link to original content where possible.
 
 # Recommendations (PMM Team)
 - 3–5 actionable moves for the PMM org (messaging, enablement, content).
@@ -37,19 +41,31 @@ Here are the raw diffs to analyze:
 """
 
 def _build_diffs_text(changes: List[Dict]) -> str:
-    sections = []
+    quotes_section = []
+    others_section = []
+
     for c in changes:
-        added = c.get("added") or []
+        url = c.get("url", "")
         quotes = c.get("quotes") or []
+        added = c.get("added") or []
 
-        bullets = "\n".join(f"• {ln}" for ln in added[:60]) if added else "(no visible changes)"
-        quote_lines = "\n".join(f'• “{q["summary"]}” — [source]({q["link"]})' for q in quotes) if quotes else ""
+        if quotes:
+            for q in quotes:
+                qtext = q.get("summary") or q.get("text") or "(no summary)"
+                qlink = q.get("link") or url
+                quotes_section.append(f'• "{qtext.strip()}" — [source]({qlink})')
 
-        quote_section = f"\n\n🔗 Quotes:\n{quote_lines}" if quote_lines else ""
-        section = f"### {c['url']}\n\n{bullets}{quote_section}"
-        sections.append(section)
+        if added:
+            lines = "\n".join(f"• {line}" for line in added[:10])
+            others_section.append(f"### {url}\n\n{lines}")
 
-    return "\n\n".join(sections) if sections else "(no diffs)"
+    all_sections = []
+    if quotes_section:
+        all_sections.append("## 🔥 Community & Sentiment Quotes\n" + "\n".join(quotes_section))
+    if others_section:
+        all_sections.append("\n\n## 📚 Other Updates\n" + "\n\n".join(others_section))
+
+    return "\n\n".join(all_sections) if all_sections else "(no diffs)"
 
 def write_summary(changes: List[Dict], retries=3, delay=5) -> str:
     if not changes or all(not (c.get("added") or c.get("removed")) for c in changes):
