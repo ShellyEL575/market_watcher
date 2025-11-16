@@ -2,56 +2,102 @@ sites:
   # ===== OFFICIAL BLOGS / CHANGELOGS =====
   - url: "https://harness.io/blog"
     selector: "main"
+    type: official
   - url: "https://about.gitlab.com/blog/"
     selector: "main"
+    type: official
   - url: "https://about.gitlab.com/releases/"
     selector: "main"
+    type: official
   - url: "https://github.blog/"
     selector: "main"
+    type: official
   - url: "https://github.blog/changelog/"
     selector: "main"
-  - url: "https://grafana.com/blog/"
-    selector: "main"
-  - url: "https://grafana.com/docs/grafana/latest/release-notes/"
-    selector: "main"
+    type: official
 
-  # ===== COMMUNITY FORUMS (RSS feeds) =====
-  - url: "https://community.harness.io/latest.rss"
-  - url: "https://forum.gitlab.com/latest.rss"
-  - url: "https://community.grafana.com/latest.rss"
+  # ===== COMPETITOR CHANGELOGS =====
+  - url: "https://developer.harness.io/release-notes/"
+    type: official
+  - url: "https://developer.harness.io/release-notes/platform/"
+    type: official
+  - url: "https://developer.harness.io/release-notes/feature-management-experimentation/"
+    type: official
+  - url: "https://developer.harness.io/release-notes/ai-test-automation/"
+    type: official
+  - url: "https://developer.harness.io/release-notes/code-repository/"
+    type: official
+  - url: "https://linearb.helpdocs.io/category/dfcw1c101j-release-notes"
+    type: official
+  - url: "https://linear.app/changelog"
+    type: official
 
-  # ===== GITHUB DISCUSSIONS / ISSUES (Atom feeds) =====
+  # ===== GITHUB DISCUSSIONS / ISSUES =====
   - url: "https://github.com/orgs/community/discussions.atom"
+    type: official
   - url: "https://github.com/grafana/grafana/discussions.atom"
+    type: official
   - url: "https://gitlab.com/gitlab-org/gitlab/-/issues.atom"
+    type: official
 
-  # ===== STACK OVERFLOW TAGS (RSS feeds) =====
+  # ===== COMMUNITY / SOCIAL (RSS/Atom feeds) =====
   - url: "https://stackoverflow.com/feeds/tag?tagnames=gitlab&sort=newest"
+    type: social
   - url: "https://stackoverflow.com/feeds/tag?tagnames=github&sort=newest"
+    type: social
   - url: "https://stackoverflow.com/feeds/tag?tagnames=grafana&sort=newest"
+    type: social
   - url: "https://stackoverflow.com/feeds/tag?tagnames=harness-io&sort=newest"
+    type: social
   - url: "https://stackoverflow.com/feeds/tag?tagnames=jenkins&sort=newest"
-  - url: "https://stackoverflow.com/feeds/tag?tagnames=ai&sort=newest"
-
-  # ===== REDDIT (RSS) =====
+    type: social
   - url: "https://www.reddit.com/r/devops/.rss"
+    type: social
   - url: "https://www.reddit.com/r/gitlab/.rss"
+    type: social
   - url: "https://www.reddit.com/r/github/.rss"
+    type: social
   - url: "https://www.reddit.com/r/observability/.rss"
+    type: social
   - url: "https://www.reddit.com/r/kubernetes/.rss"
+    type: social
   - url: "https://www.reddit.com/r/machinelearning/.rss"
+    type: social
   - url: "https://www.reddit.com/r/artificial/.rss"
+    type: social
+  - url: "https://hnrss.org/newest?points=20?q=gitlab%20OR%20github%20OR%20grafana%20OR%20jenkins"
+    type: social
+  - url: "https://hnrss.org/newest?points=20?q=devops%20OR%20cicd%20OR%20observability"
+    type: social
+  - url: "https://hnrss.org/newest?points=20?q=ai%20OR%20ml%20OR%20machine%20learning"
+    type: social
 
-  # ===== HACKER NEWS KEYWORD FEEDS =====
-  - url: "https://hnrss.org/newest?points=20&q=gitlab%20OR%20github%20OR%20grafana%20OR%20jenkins"
-  - url: "https://hnrss.org/newest?points=20&q=devops%20OR%20cicd%20OR%20observability"
-  - url: "https://hnrss.org/newest?points=20&q=ai%20OR%20ml%20OR%20machine%20learning"
+  # ===== AI VENDOR / CHANGELOG =====
+  - url: "https://openai.com/blog/rss.xml"
+    type: official
+  - url: "https://changelog.langchain.com/"
+    type: official
+  - url: "https://blogs.nvidia.com/feed/"
+    type: official
 
-  # ===== ANALYST & MEDIA =====
+  # ===== ANALYST / MEDIA =====
   - url: "https://thenewstack.io/"
     selector: "main"
+    type: analyst
   - url: "https://www.infoq.com/devops/"
     selector: "main"
-  - url: "https://blogs.nvidia.com/feed/"
-  - url: "https://openai.com/blog/rss.xml"
+    type: analyst
   - url: "https://devops.com/category/ai/feed/"
+    type: analyst
+
+  # ===== CAREER & JOB PAGES =====
+  - url: "https://about.gitlab.com/jobs/"
+    type: jobs
+  - url: "https://harness.io/company/careers"
+    type: jobs
+  - url: "https://grafana.com/about/careers"
+    type: jobs
+  - url: "https://linear.app/jobs"
+    type: jobs
+  - url: "https://about.github.com/careers"
+    type: jobs
