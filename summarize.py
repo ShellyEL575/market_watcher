@@ -18,66 +18,89 @@ It should prioritize insight, clarity, and actionable value, and feel polished e
 # Format the briefing with these structured sections:
 
 ## 🔥 Market Sentiment (Social only: Reddit, X, LinkedIn, StackOverflow)
-- Group feedback into clear themes (e.g., onboarding, pricing, performance).
-- Quantify mentions (e.g., “12 posts about agent flakiness”).
-- Include 3–5 linked quotes as evidence.
+- Group key quotes and themes from real users.
+- Highlight adoption blockers, shifts in sentiment, new tool buzz.
+- Include direct quotes with links, grouped by theme if possible.
 
 ## 🧠 Executive Summary
-- 3–5 top insights across all competitors or market signals.
-- Focus on things that could move the market or messaging.
-- Use strong verbs. Add source links inline.
+- Top 3–5 insights across all competitors or market signals.
+- Focus on new updates, notable reactions, or market shifts.
 
 ## 🏢 By Competitor (GitLab, GitHub, Harness, Grafana, etc.)
-- For each, list only content published in the past 7 days.
-- Include actual post dates (e.g., “Nov 10: GitHub launched…”).
-- Skip or flag stale content even if diffed again.
-- Add links to source content.
+- Only include updates published this past week.
+- Include release links and brief notes on significance.
+
+## 🤖 AI in DevOps
+- Highlight AI-driven feature releases, discussions, or usage shifts.
+- Focus on LangChain, OpenAI, Nvidia, ML/AI-related DevOps chatter.
 
 ## 🗞️ Analyst & Media
-- Summarize 1–3 relevant industry or analyst pieces.
-- Include sentiment if opinionated (e.g., “GitLab is outpacing others in AI”).
-- Link to source.
+- Include industry commentary or analyst takes.
+- Link to original post. Summarize sentiment.
 
-## 📈 Hiring Signals (Job Postings)
-- Summarize patterns in recent job postings by competitors.
-- Highlight roles tied to product growth, GTM focus, or strategic bets (e.g., AI, DevEx, ecosystem).
-- Mention volume shifts, new regions, or notable senior hires.
-- Include links to 2–3 representative listings.
+## 📈 Hiring Signals
+- Summarize any hiring trends visible from job feeds or postings.
+- Link to 2–3 relevant examples.
 
 ---
-Here are the raw diffs to analyze:
+Here are the raw updates to analyze:
 
 {diffs}
 """
 
 def _build_diffs_text(changes: List[Dict]) -> str:
-    quotes_section = []
-    others_section = []
+    sections = {
+        "sentiment": [],
+        "competitor": [],
+        "ai": [],
+        "analyst": [],
+        "jobs": [],
+        "other": []
+    }
 
     for c in changes:
         url = c.get("url", "")
         quotes = c.get("quotes") or []
         added = c.get("added") or []
-        source_type = c.get("source_type", "official")
+        stype = c.get("source_type", "other")
+        domain = url.lower()
 
-        # Only include social quotes in sentiment section
-        if source_type == "social" and quotes:
+        if stype == "social":
             for q in quotes:
-                qtext = q.get("summary") or q.get("text") or "(no summary)"
+                qtext = q.get("summary") or q.get("text")
                 qlink = q.get("link") or url
-                quotes_section.append(f'• "{qtext.strip()}" — [source]({qlink})')
+                sections["sentiment"].append(f'• "{qtext.strip()}" — [source]({qlink})')
+        elif any(x in domain for x in ["gitlab", "github", "harness", "grafana", "linearb"]):
+            lines = "\n".join(f"• {ln}" for ln in added[:10])
+            sections["competitor"].append(f"### {url}\n\n{lines}")
+        elif any(x in domain for x in ["openai", "langchain", "nvidia", "ml", "ai"]):
+            lines = "\n".join(f"• {ln}" for ln in added[:10])
+            sections["ai"].append(f"### {url}\n\n{lines}")
+        elif stype == "analyst":
+            lines = "\n".join(f"• {ln}" for ln in added[:10])
+            sections["analyst"].append(f"### {url}\n\n{lines}")
+        elif "jobs" in stype or "job" in domain:
+            lines = "\n".join(f"• {ln}" for ln in added[:10])
+            sections["jobs"].append(f"### {url}\n\n{lines}")
+        else:
+            lines = "\n".join(f"• {ln}" for ln in added[:10])
+            sections["other"].append(f"### {url}\n\n{lines}")
 
-        if added:
-            lines = "\n".join(f"• {line}" for line in added[:10])
-            others_section.append(f"### {url}\n\n{lines}")
+    output = []
+    if sections["sentiment"]:
+        output.append("## 🔥 Market Sentiment\n" + "\n".join(sections["sentiment"]))
+    if sections["competitor"]:
+        output.append("## 🏢 By Competitor\n" + "\n\n".join(sections["competitor"]))
+    if sections["ai"]:
+        output.append("## 🤖 AI in DevOps\n" + "\n\n".join(sections["ai"]))
+    if sections["analyst"]:
+        output.append("## 🗞️ Analyst & Media\n" + "\n\n".join(sections["analyst"]))
+    if sections["jobs"]:
+        output.append("## 📈 Hiring Signals\n" + "\n\n".join(sections["jobs"]))
+    if sections["other"]:
+        output.append("## 📚 Other Updates\n" + "\n\n".join(sections["other"]))
 
-    all_sections = []
-    if quotes_section:
-        all_sections.append("## 🔥 Community & Sentiment Quotes (Social Only)\n" + "\n".join(quotes_section))
-    if others_section:
-        all_sections.append("\n\n## 📚 Other Updates\n" + "\n\n".join(others_section))
-
-    return "\n\n".join(all_sections) if all_sections else "(no diffs)"
+    return "\n\n".join(output)
 
 def write_summary(changes: List[Dict], retries=3, delay=5) -> str:
     if not changes or all(not (c.get("added") or c.get("removed")) for c in changes):
