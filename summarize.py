@@ -1,6 +1,7 @@
 import os
 import time
 from typing import List, Dict
+from collections import defaultdict
 from openai import OpenAI, APIConnectionError
 
 SYSTEM = """You are a VP of Product Marketing (PMM) reviewing competitive and market intelligence.
@@ -21,6 +22,7 @@ It should prioritize insight, clarity, and actionable value, and feel polished e
 - Group key quotes and themes from real users.
 - Highlight adoption blockers, shifts in sentiment, new tool buzz.
 - Include direct quotes with links, grouped by theme if possible.
+- Show theme counts to highlight market volume.
 
 ## 🧠 Executive Summary
 - Top 3–5 insights across all competitors or market signals.
@@ -58,6 +60,9 @@ def _build_diffs_text(changes: List[Dict]) -> str:
         "other": []
     }
 
+    sentiment_counts = defaultdict(int)
+    sentiment_quotes = defaultdict(list)
+
     for c in changes:
         url = c.get("url", "")
         quotes = c.get("quotes") or []
@@ -67,9 +72,22 @@ def _build_diffs_text(changes: List[Dict]) -> str:
 
         if stype == "social":
             for q in quotes:
-                qtext = q.get("summary") or q.get("text")
+                qtext = (q.get("summary") or q.get("text") or "").lower()
                 qlink = q.get("link") or url
-                sections["sentiment"].append(f'• "{qtext.strip()}" — [source]({qlink})')
+
+                theme = "Other"
+                if "governance" in qtext:
+                    theme = "AI Governance"
+                elif "skeptic" in qtext or "concern" in qtext:
+                    theme = "AI Skepticism"
+                elif "performance" in qtext or "slow" in qtext:
+                    theme = "Performance Issues"
+                elif "langchain" in qtext or "agent" in qtext:
+                    theme = "Agentic AI"
+
+                sentiment_counts[theme] += 1
+                sentiment_quotes[theme].append(f'• "{qtext.strip()}" — [source]({qlink})')
+
         elif any(x in domain for x in ["gitlab", "github", "harness", "grafana", "linearb"]):
             lines = "\n".join(f"• {ln}" for ln in added[:10])
             sections["competitor"].append(f"### {url}\n\n{lines}")
@@ -87,8 +105,15 @@ def _build_diffs_text(changes: List[Dict]) -> str:
             sections["other"].append(f"### {url}\n\n{lines}")
 
     output = []
-    if sections["sentiment"]:
-        output.append("## 🔥 Market Sentiment\n" + "\n".join(sections["sentiment"]))
+
+    if sentiment_counts:
+        summary_lines = [f"- **{k}**: {v} mentions" for k, v in sentiment_counts.items()]
+        quotes_by_theme = []
+        for theme, quotes in sentiment_quotes.items():
+            quotes_by_theme.append(f"### {theme}\n" + "\n".join(quotes))
+        sentiment_block = "## 🔥 Market Sentiment\n" + "\n".join(summary_lines) + "\n\n" + "\n\n".join(quotes_by_theme)
+        output.append(sentiment_block)
+
     if sections["competitor"]:
         output.append("## 🏢 By Competitor\n" + "\n\n".join(sections["competitor"]))
     if sections["ai"]:
