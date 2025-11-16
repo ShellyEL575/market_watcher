@@ -1,7 +1,7 @@
 import os
 import time
-from typing import List, Dict
 from collections import defaultdict, Counter
+from typing import List, Dict
 from openai import OpenAI, APIConnectionError
 
 SYSTEM = """You are a VP of Product Marketing (PMM) reviewing competitive and market intelligence.
@@ -21,9 +21,7 @@ It should prioritize insight, clarity, and actionable value, and feel polished e
 ## 🔥 Market Sentiment (Social only: Reddit, X, LinkedIn, StackOverflow)
 - Group key quotes and themes from real users.
 - Highlight adoption blockers, shifts in sentiment, new tool buzz.
-- For each theme:
-  - List number of mentions by platform (e.g., Reddit: 8, X: 5)
-  - Include 2–3 direct quotes with real working links.
+- Include direct quotes with links, grouped by theme if possible.
 
 ## 🧠 Executive Summary
 - Top 3–5 insights across all competitors or market signals.
@@ -37,7 +35,7 @@ It should prioritize insight, clarity, and actionable value, and feel polished e
 - Highlight AI-driven feature releases, discussions, or usage shifts.
 - Focus on LangChain, OpenAI, Nvidia, ML/AI-related DevOps chatter.
 
-## 🗞️ Analyst & Media
+## 📜 Analyst & Media
 - Include industry commentary or analyst takes.
 - Link to original post. Summarize sentiment.
 
@@ -53,16 +51,14 @@ Here are the raw updates to analyze:
 
 def _build_diffs_text(changes: List[Dict]) -> str:
     sections = {
-        "sentiment": [],
+        "sentiment": defaultdict(list),
+        "platform_counts": Counter(),
         "competitor": [],
         "ai": [],
         "analyst": [],
         "jobs": [],
         "other": []
     }
-
-    sentiment_quotes = defaultdict(list)
-    platform_counter = defaultdict(Counter)
 
     for c in changes:
         url = c.get("url", "")
@@ -73,64 +69,65 @@ def _build_diffs_text(changes: List[Dict]) -> str:
 
         if stype == "social":
             for q in quotes:
-                qtext = q.get("summary") or q.get("text")
+                qtext = q.get("summary") or q.get("text") or "(no summary)"
                 qlink = q.get("link") or url
-                platform = q.get("platform") or infer_platform_from_url(qlink)
+                platform = q.get("platform") or "unknown"
                 theme = "general"
-                sentiment_quotes[theme].append((qtext.strip(), qlink, platform))
-                platform_counter[theme][platform] += 1
+                # Optional: use NLP to auto-categorize
+                if any(kw in qtext.lower() for kw in ["ai", "ml", "artificial"]):
+                    theme = "AI Integration in DevOps"
+                elif any(kw in qtext.lower() for kw in ["learning curve", "adoption", "onboarding"]):
+                    theme = "Adoption Barriers"
+                elif any(kw in qtext.lower() for kw in ["tool", "platform", "feature"]):
+                    theme = "Emerging Tools"
+                sections["sentiment"][theme].append((qtext.strip(), qlink, platform))
+                sections["platform_counts"].update([platform])
+
         elif any(x in domain for x in ["gitlab", "github", "harness", "grafana", "linearb"]):
             lines = "\n".join(f"• {ln}" for ln in added[:10])
             sections["competitor"].append(f"### {url}\n\n{lines}")
+
         elif any(x in domain for x in ["openai", "langchain", "nvidia", "ml", "ai"]):
             lines = "\n".join(f"• {ln}" for ln in added[:10])
             sections["ai"].append(f"### {url}\n\n{lines}")
+
         elif stype == "analyst":
             lines = "\n".join(f"• {ln}" for ln in added[:10])
             sections["analyst"].append(f"### {url}\n\n{lines}")
+
         elif "jobs" in stype or "job" in domain:
             lines = "\n".join(f"• {ln}" for ln in added[:10])
             sections["jobs"].append(f"### {url}\n\n{lines}")
+
         else:
             lines = "\n".join(f"• {ln}" for ln in added[:10])
             sections["other"].append(f"### {url}\n\n{lines}")
 
-    if sentiment_quotes:
-        sentiment_block = ["## 🔥 Market Sentiment"]
-        for theme, quotes in sentiment_quotes.items():
-            plat_counts = ", ".join(f"{k}: {v}" for k, v in platform_counter[theme].items())
-            quote_lines = [f'  - "{qt}" [source]({ql})' for qt, ql, _ in quotes[:3]]
-            sentiment_block.append(f"### Theme: {theme}\n- Posts: {len(quotes)} ({plat_counts})\n- Quotes:\n" + "\n".join(quote_lines))
-        sections["sentiment"] = ["\n\n".join(sentiment_block)]
-
     output = []
-    for key in ["sentiment", "competitor", "ai", "analyst", "jobs", "other"]:
-        if sections[key]:
-            title = {
-                "sentiment": "## 🔥 Market Sentiment",
-                "competitor": "## 🏢 By Competitor",
-                "ai": "## 🤖 AI in DevOps",
-                "analyst": "## 🗞️ Analyst & Media",
-                "jobs": "## 📈 Hiring Signals",
-                "other": "## 📚 Other Updates"
-            }[key]
-            output.append(title + "\n" + "\n\n".join(sections[key]))
+
+    if sections["sentiment"]:
+        sentiment_lines = ["## 🔥 Market Sentiment (Social only: Reddit, X, LinkedIn, StackOverflow)", "\n### Key Themes:"]
+        for theme, quotes in sections["sentiment"].items():
+            platform_counts = Counter([p for _, _, p in quotes])
+            total = sum(platform_counts.values())
+            platforms_str = ", ".join([f"{k.title()}: {v}" for k, v in platform_counts.items()])
+            sentiment_lines.append(f"\n**{theme}**\n- **Mentions**: {total} ({platforms_str})\n- **Quotes:**")
+            for qtext, qlink, _ in quotes[:3]:
+                sentiment_lines.append(f'  - "{qtext}" [Link]({qlink})')
+        output.append("\n".join(sentiment_lines))
+
+    if sections["competitor"]:
+        output.append("## 🏢 By Competitor\n" + "\n\n".join(sections["competitor"]))
+    if sections["ai"]:
+        output.append("## 🤖 AI in DevOps\n" + "\n\n".join(sections["ai"]))
+    if sections["analyst"]:
+        output.append("## 🗞️ Analyst & Media\n" + "\n\n".join(sections["analyst"]))
+    if sections["jobs"]:
+        output.append("## 📈 Hiring Signals\n" + "\n\n".join(sections["jobs"]))
+    if sections["other"]:
+        output.append("## 📚 Other Updates\n" + "\n\n".join(sections["other"]))
 
     return "\n\n".join(output)
-
-def infer_platform_from_url(url: str) -> str:
-    url = url.lower()
-    if "reddit" in url:
-        return "Reddit"
-    elif "stackoverflow" in url:
-        return "StackOverflow"
-    elif "linkedin" in url:
-        return "LinkedIn"
-    elif "x.com" in url or "twitter.com" in url:
-        return "X"
-    elif "hn" in url or "news.ycombinator.com" in url:
-        return "HackerNews"
-    return "Other"
 
 def write_summary(changes: List[Dict], retries=3, delay=5) -> str:
     if not changes or all(not (c.get("added") or c.get("removed")) for c in changes):
