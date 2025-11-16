@@ -1,9 +1,8 @@
 import os, time
 from dotenv import load_dotenv
 from scraper import fetch_site_batch
-from diffing import compute_changes
 from summarize import write_summary
-from storage import upsert_snapshots, get_last_snapshots, save_report
+from storage import upsert_snapshots, save_report
 from exporter import write_markdown
 
 def _to_lines(s):
@@ -42,51 +41,24 @@ def run_weekly():
 
     print(f"✅ Fetched {len(pages)} pages.")
 
-    print("🗂 Comparing with last snapshots...")
-    prev = get_last_snapshots([p["url"] for p in pages])
-
-    print("🧮 Computing diffs...")
-    changes = compute_changes(pages, prev)
-
-    force = os.getenv("FORCE_SUMMARY") == "1"
-    no_real_diffs = not changes or all(
-        not (c.get("added") or c.get("removed")) for c in changes
-    )
-
     # -----------------------------
-    # 🔥 FILTER + ENRICH CHANGES
+    # 🔥 USE LATEST SNAPSHOTS
     # -----------------------------
-    if force or no_real_diffs:
-        print("📌 No real diffs detected. Generating baseline summary...")
-        chosen_changes = make_baseline_changes(pages)
+    # Instead of diffing, summarize the latest content directly. This keeps
+    # prompts focused on current signals and avoids missing fresh context when
+    # prior snapshots are incomplete.
+    print("🧮 Skipping diffs; summarizing latest content...")
+    chosen_changes = make_baseline_changes(pages)
 
-    else:
-        print("📊 Real diffs detected. Using them for summary...")
-
-        chosen_changes = []
-
-        for c in changes:
-            # Skip empty diffs
-            if not (c.get("added") or c.get("removed")):
-                continue
-
-            # Find related page metadata
-            page = next((p for p in pages if p["url"] == c["url"]), {})
-            source_type = page.get("source_type", "official")
-
-            # SOCIAL‑ONLY QUOTES HERE
-            if source_type == "social":
-                filtered_quotes = page.get("quotes", [])
-            else:
-                filtered_quotes = []
-
-            new_change = {
-                **c,
-                "source_type": source_type,
-                "quotes": filtered_quotes,
-            }
-
-            chosen_changes.append(new_change)
+    # Preserve social quotes for downstream sentiment grouping
+    for change in chosen_changes:
+        page = next((p for p in pages if p["url"] == change["url"]), {})
+        source_type = page.get("source_type", "official")
+        change["source_type"] = source_type
+        if source_type == "social":
+            change["quotes"] = page.get("quotes", [])
+        else:
+            change["quotes"] = []
 
     # -----------------------------
     # LLM SUMMARY
