@@ -49,12 +49,18 @@ def _extract_html_text(text: str) -> str:
         script.decompose()
     return soup.get_text(separator="\n")
 
+def _infer_source_type(url: str) -> str:
+    social_domains = [
+        "reddit.com", "stackoverflow.com", "linkedin.com",
+        "twitter.com", "x.com", "hnrss.org", "discord.com"
+    ]
+    return "social" if any(domain in url for domain in social_domains) else "official"
+
 def fetch_site_batch(yaml_path: str) -> List[Dict]:
     with open(yaml_path, "r") as f:
         data = yaml.safe_load(f)
 
     sites = data["sites"]
-
     results = []
 
     for site in sites:
@@ -73,9 +79,8 @@ def fetch_site_batch(yaml_path: str) -> List[Dict]:
             extracted = _extract_html_text(text_raw)
             quotes = []
 
-        source_type = "social" if any(domain in url for domain in [
-            "reddit.com", "stackoverflow.com", "linkedin.com", "twitter.com", "x.com", "hnrss.org", "discord.com"
-        ]) else "official"
+        # Prefer manual type override, fallback to domain-based guess
+        source_type = site.get("type") or _infer_source_type(url)
 
         results.append({
             "url": url,
