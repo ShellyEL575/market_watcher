@@ -65,3 +65,5 @@ def _extract_rss_with_quotes(text: str, feed_url: str) -> Tuple[str, List[Dict]]
     for item in items:
         title_tag = item.find("title")
         link_tag = item.find("link")
+        
+def fetch_site_batch(yaml_path: str) -> List[Dict]:
