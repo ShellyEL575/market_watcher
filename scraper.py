@@ -67,3 +67,6 @@ def _extract_rss_with_quotes(text: str, feed_url: str) -> Tuple[str, List[Dict]]
         link_tag = item.find("link")
         
 def fetch_site_batch(yaml_path: str) -> List[Dict]:
+
+    if __name__ == "__main__":
+    print("✅ fetch_site_batch is defined and ready.")
